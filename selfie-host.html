@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Selfie Injector - BLS</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #000; color: #fff; }
+        #status { margin-top: 20px; padding: 10px; background: #222; border-radius: 8px; }
+        button { background: #00ff88; color: #000; border: none; padding: 12px 20px; border-radius: 8px; margin-top: 20px; cursor: pointer; font-weight: bold; }
+        .hidden { display: none; }
+        iframe { width: 100%; height: 70vh; border: none; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h3>🔄 BLS Selfie Injector</h3>
+    <div id="status">⏳ Loading data...</div>
+    <button id="injectBtn" class="hidden">📸 Start Selfie</button>
+    <iframe id="blsFrame" class="hidden"></iframe>
+
+    <script>
+        // استخراج الرابط من معاملات URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const dataUrl = urlParams.get('data');
+
+        if (!dataUrl) {
+            document.getElementById('status').innerHTML = '❌ Error: No data link provided.';
+        } else {
+            document.getElementById('status').innerHTML = '✅ Data link received. Fetching data...';
+            
+            // جلب البيانات من JSONBin
+            fetch(dataUrl)
+                .then(res => res.json())
+                .then(data => {
+                    console.log('Data fetched:', data);
+                    // استخراج الحقول من الاستجابة
+                    const appointmentData = data.record.appointmentData;
+                    const livenessData = data.record.livenessData;
+                    const token = data.record.token;
+                    
+                    if (!appointmentData || !livenessData || !token) {
+                        throw new Error('Missing fields in fetched data');
+                    }
+                    
+                    document.getElementById('status').innerHTML = '✅ Data loaded. Please click Start Selfie.';
+                    document.getElementById('injectBtn').classList.remove('hidden');
+                    
+                    // تخزين البيانات مؤقتاً
+                    window.selfieData = { appointmentData, livenessData, token };
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('status').innerHTML = '❌ Failed to fetch data: ' + err.message;
+                });
+        }
+        
+        document.getElementById('injectBtn').onclick = () => {
+            const frame = document.getElementById('blsFrame');
+            frame.classList.remove('hidden');
+            frame.src = 'https://www.blsspainmorocco.net/MAR/appointment/livenessrequest';
+            document.getElementById('status').innerHTML = '⏳ Loading BLS page...';
+            document.getElementById('injectBtn').disabled = true;
+            
+            frame.onload = () => {
+                document.getElementById('status').innerHTML = '🔄 Injecting data...';
+                try {
+                    // حقن البيانات في iframe
+                    const iframeDoc = frame.contentDocument || frame.contentWindow.document;
+                    
+                    // تعيين قيم الحقول المخفية
+                    iframeDoc.querySelector('input[name="AppointmentData"]').value = window.selfieData.appointmentData;
+                    iframeDoc.querySelector('input[name="LivenessData"]').value = window.selfieData.livenessData;
+                    iframeDoc.querySelector('input[name="__RequestVerificationToken"]').value = window.selfieData.token;
+                    
+                    document.getElementById('status').innerHTML = '✅ Data injected! Press Accept in the frame below.';
+                    
+                    // يمكننا حتى الضغط على Accept تلقائياً (اختياري)
+                    // iframeDoc.querySelector('.btn-success').click();
+                } catch(e) {
+                    console.error('Injection error:', e);
+                    document.getElementById('status').innerHTML = '❌ Injection failed. Make sure you are logged into BLS on this browser.';
+                }
+            };
+        };
+    </script>
+</body>
+</html>
