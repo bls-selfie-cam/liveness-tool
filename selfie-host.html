@@ -9,17 +9,18 @@
         #status { margin-top: 20px; padding: 10px; background: #222; border-radius: 8px; }
         button { background: #00ff88; color: #000; border: none; padding: 12px 20px; border-radius: 8px; margin-top: 20px; cursor: pointer; font-weight: bold; }
         .hidden { display: none; }
-        iframe { width: 100%; height: 70vh; border: none; margin-top: 20px; }
+        .loader { display: inline-block; width: 20px; height: 20px; border: 2px solid #00ff88; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px; vertical-align: middle; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .note { margin-top: 20px; font-size: 12px; color: #aaa; }
     </style>
 </head>
 <body>
     <h3>🔄 BLS Selfie Injector</h3>
     <div id="status">⏳ Loading data...</div>
     <button id="injectBtn" class="hidden">📸 Start Selfie</button>
-    <iframe id="blsFrame" class="hidden"></iframe>
+    <div id="note" class="note hidden">⚠️ If popup is blocked, please allow popups for this site.</div>
 
     <script>
-        // استخراج الرابط من معاملات URL
         const urlParams = new URLSearchParams(window.location.search);
         const dataUrl = urlParams.get('data');
 
@@ -28,15 +29,13 @@
         } else {
             document.getElementById('status').innerHTML = '✅ Data link received. Fetching data...';
             
-            // جلب البيانات من JSONBin
             fetch(dataUrl)
                 .then(res => res.json())
                 .then(data => {
-                    console.log('Data fetched:', data);
-                    // استخراج الحقول من الاستجابة
-                    const appointmentData = data.record.appointmentData;
-                    const livenessData = data.record.livenessData;
-                    const token = data.record.token;
+                    const record = data.record || data;
+                    const appointmentData = record.appointmentData;
+                    const livenessData = record.livenessData;
+                    const token = record.token;
                     
                     if (!appointmentData || !livenessData || !token) {
                         throw new Error('Missing fields in fetched data');
@@ -44,8 +43,7 @@
                     
                     document.getElementById('status').innerHTML = '✅ Data loaded. Please click Start Selfie.';
                     document.getElementById('injectBtn').classList.remove('hidden');
-                    
-                    // تخزين البيانات مؤقتاً
+                    document.getElementById('note').classList.remove('hidden');
                     window.selfieData = { appointmentData, livenessData, token };
                 })
                 .catch(err => {
@@ -55,32 +53,51 @@
         }
         
         document.getElementById('injectBtn').onclick = () => {
-            const frame = document.getElementById('blsFrame');
-            frame.classList.remove('hidden');
-            frame.src = 'https://www.blsspainmorocco.net/MAR/appointment/livenessrequest';
-            document.getElementById('status').innerHTML = '⏳ Loading BLS page...';
+            document.getElementById('status').innerHTML = '<span class="loader"></span> Opening BLS window...';
             document.getElementById('injectBtn').disabled = true;
             
-            frame.onload = () => {
-                document.getElementById('status').innerHTML = '🔄 Injecting data...';
+            const popup = window.open('https://www.blsspainmorocco.net/MAR/appointment/livenessrequest', '_blank', 'width=500,height=700');
+            
+            if (!popup) {
+                document.getElementById('status').innerHTML = '❌ Popup blocked! Please allow popups and try again.';
+                document.getElementById('injectBtn').disabled = false;
+                return;
+            }
+            
+            let attempts = 0;
+            const maxAttempts = 40;
+            
+            const interval = setInterval(() => {
+                attempts++;
                 try {
-                    // حقن البيانات في iframe
-                    const iframeDoc = frame.contentDocument || frame.contentWindow.document;
+                    const doc = popup.document;
+                    const appInput = doc.querySelector('input[name="AppointmentData"]');
+                    const livInput = doc.querySelector('input[name="LivenessData"]');
+                    const tokenInput = doc.querySelector('input[name="__RequestVerificationToken"]');
+                    const acceptBtn = doc.querySelector('.btn-success');
                     
-                    // تعيين قيم الحقول المخفية
-                    iframeDoc.querySelector('input[name="AppointmentData"]').value = window.selfieData.appointmentData;
-                    iframeDoc.querySelector('input[name="LivenessData"]').value = window.selfieData.livenessData;
-                    iframeDoc.querySelector('input[name="__RequestVerificationToken"]').value = window.selfieData.token;
-                    
-                    document.getElementById('status').innerHTML = '✅ Data injected! Press Accept in the frame below.';
-                    
-                    // يمكننا حتى الضغط على Accept تلقائياً (اختياري)
-                    // iframeDoc.querySelector('.btn-success').click();
+                    if (appInput && livInput && tokenInput) {
+                        appInput.value = window.selfieData.appointmentData;
+                        livInput.value = window.selfieData.livenessData;
+                        tokenInput.value = window.selfieData.token;
+                        document.getElementById('status').innerHTML = '✅ Data injected!';
+                        
+                        if (acceptBtn) {
+                            acceptBtn.click();
+                            document.getElementById('status').innerHTML = '✅ Selfie started! Complete the verification in the popup.';
+                        }
+                        clearInterval(interval);
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(interval);
+                        document.getElementById('status').innerHTML = '⚠️ Could not inject automatically. Please press Accept manually in the popup.';
+                    }
                 } catch(e) {
-                    console.error('Injection error:', e);
-                    document.getElementById('status').innerHTML = '❌ Injection failed. Make sure you are logged into BLS on this browser.';
+                    if (attempts >= maxAttempts) {
+                        clearInterval(interval);
+                        document.getElementById('status').innerHTML = '⚠️ Please press Accept manually in the popup.';
+                    }
                 }
-            };
+            }, 500);
         };
     </script>
 </body>
