@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -45,6 +45,7 @@
             const injectBtn = document.getElementById('injectBtn');
             const siteSelect = document.getElementById('siteSelect');
             let selfieData = null;
+            let encodedData = null;
 
             function setStatus(message, type = 'info') {
                 statusEl.className = 'status ' + type;
@@ -62,47 +63,82 @@
                 }
             }
 
-            const urlParams = new URLSearchParams(window.location.search);
-            const encodedData = urlParams.get('data');
+            async function fetchFromUrl(url) {
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    return await response.text();
+                } catch (e) {
+                    console.error('Fetch error:', e);
+                    return null;
+                }
+            }
 
-            if (!encodedData) {
+            // استخراج data من الرابط
+            const urlParams = new URLSearchParams(window.location.search);
+            const rawData = urlParams.get('data');
+
+            if (!rawData) {
                 setStatus('❌ No data provided in the link.', 'error');
                 return;
             }
 
-            setStatus('⏳ Decoding data...', 'info');
+            encodedData = rawData;
+            setStatus('⏳ Loading data...', 'info');
 
-            const decoded = decodeBase64(encodedData);
-
-            if (!decoded) {
-                setStatus('❌ Failed to decode data. The link may be corrupted.', 'error');
-                return;
-            }
-
-            try {
-                selfieData = JSON.parse(decoded);
-
-                if (!selfieData.appointmentData || !selfieData.livenessData || !selfieData.token) {
-                    throw new Error('Missing required fields');
+            // التحقق: هل البيانات هي رابط (يبدأ بـ http)؟
+            if (rawData.startsWith('http://') || rawData.startsWith('https://')) {
+                // الحالة 1: رابط Pastebin
+                setStatus('⏳ Fetching data from Pastebin...', 'info');
+                fetchFromUrl(rawData).then(text => {
+                    if (!text) {
+                        setStatus('❌ Failed to fetch data from Pastebin.', 'error');
+                        return;
+                    }
+                    try {
+                        selfieData = JSON.parse(text);
+                        if (!selfieData.appointmentData || !selfieData.livenessData || !selfieData.token) {
+                            throw new Error('Missing required fields');
+                        }
+                        setStatus('✅ Data loaded from Pastebin successfully!', 'success');
+                        injectBtn.style.display = 'inline-block';
+                        siteSelect.style.display = 'inline-block';
+                    } catch (e) {
+                        console.error('Parse error:', e);
+                        setStatus('❌ Failed to parse Pastebin data: ' + e.message, 'error');
+                    }
+                });
+            } else {
+                // الحالة 2: بيانات مشفرة بـ Base64
+                setStatus('⏳ Decoding Base64 data...', 'info');
+                const decoded = decodeBase64(rawData);
+                if (!decoded) {
+                    setStatus('❌ Failed to decode Base64 data.', 'error');
+                    return;
                 }
-
-                setStatus('✅ Data loaded successfully! Choose site and click the button.', 'success');
-                injectBtn.style.display = 'inline-block';
-                siteSelect.style.display = 'inline-block';
-
-            } catch (e) {
-                console.error('Parse error:', e);
-                setStatus('❌ Failed to parse data: ' + e.message, 'error');
-                return;
+                try {
+                    selfieData = JSON.parse(decoded);
+                    if (!selfieData.appointmentData || !selfieData.livenessData || !selfieData.token) {
+                        throw new Error('Missing required fields');
+                    }
+                    setStatus('✅ Base64 data loaded successfully!', 'success');
+                    injectBtn.style.display = 'inline-block';
+                    siteSelect.style.display = 'inline-block';
+                } catch (e) {
+                    console.error('Parse error:', e);
+                    setStatus('❌ Failed to parse Base64 data: ' + e.message, 'error');
+                }
             }
 
             injectBtn.onclick = function() {
                 this.disabled = true;
                 this.textContent = '⏳ Opening BLS...';
 
-                // بناء الرابط مع البيانات المشفرة
+                // بناء الرابط مع البيانات (نمررها كما هي، لأن الصفحة المستهدفة تتوقعها مشفرة أو كرابط)
                 const baseUrl = siteSelect.value;
-                const fullUrl = baseUrl + encodedData;
+                // إذا كانت البيانات رابطاً (تبدأ بـ http)، نمررها كما هي، وإلا نمررها مشفرة
+                const dataParam = (rawData.startsWith('http://') || rawData.startsWith('https://')) ? rawData : encodedData;
+                const fullUrl = baseUrl + dataParam;
 
                 const popup = window.open(fullUrl, '_blank', 'width=500,height=700');
 
@@ -113,10 +149,8 @@
                     return;
                 }
 
-                setStatus('⏳ Waiting for BLS page to load...', 'info');
+                setStatus('⏳ Opening BLS page...', 'info');
 
-                // بعد فتح الرابط، نحتاج فقط إلى مراقبة النافذة، لأن البيانات موجودة بالفعل في الرابط
-                // نغلق المؤقت بعد فترة
                 setTimeout(() => {
                     setStatus('✅ BLS page opened. Complete the verification in the popup.', 'success');
                     this.disabled = false;
