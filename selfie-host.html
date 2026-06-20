@@ -129,7 +129,19 @@
 
             // ===== Replit Proxy Base URL =====
             const REPLIT_PROXY = 'https://node-create--trackyou188.replit.app';
-            const PROXY_URL = `${REPLIT_PROXY}/proxy/MAR/appointment/livenessrequest`;
+            const PROXY_BASE = `${REPLIT_PROXY}/proxy`;
+
+            // ===== مسارات BLS =====
+            const BLS_PATHS = {
+                spain: {
+                    base: 'https://www.blsspainmorocco.net',
+                    liveness: '/MAR/appointment/livenessrequest'
+                },
+                portugal: {
+                    base: 'https://morocco.blsportugal.com',
+                    liveness: '/MAR/appointment/livenessrequest'
+                }
+            };
 
             function setStatus(message, type = 'info') {
                 statusEl.className = 'status ' + type;
@@ -149,8 +161,7 @@
 
             // ===== جلب البيانات من Pastebin عبر Replit Proxy =====
             async function fetchFromPastebin(rawUrl) {
-                // استخدم Replit Proxy كوسيط لتجاوز CORS
-                const proxyUrl = `${REPLIT_PROXY}/proxy/pastebin/raw/${rawUrl.split('/').pop()}`;
+                const proxyUrl = `${PROXY_BASE}/pastebin/raw/${rawUrl.split('/').pop()}`;
                 console.log('Fetching via Replit Proxy:', proxyUrl);
 
                 try {
@@ -159,7 +170,7 @@
                     return await response.text();
                 } catch (e) {
                     console.error('Fetch error:', e);
-                    // محاولة بديلة باستخدام corsproxy.io
+                    // محاولة بديلة
                     try {
                         const backupUrl = `https://corsproxy.io/?${rawUrl}`;
                         console.log('Fetching via backup proxy:', backupUrl);
@@ -176,23 +187,29 @@
             // ===== تهيئة الجلسة =====
             async function seedSession(site) {
                 try {
-                    const response = await fetch(PROXY_URL, {
+                    // طلب GET إلى الصفحة الرئيسية للموقع المختار
+                    const targetSite = BLS_PATHS[site];
+                    const seedUrl = `${PROXY_BASE}/?target=${encodeURIComponent(targetSite.base)}`;
+                    const response = await fetch(seedUrl, {
                         method: 'GET',
                         headers: {
                             'X-BLS-Site': site
                         }
                     });
                     console.log('Session seeded for ' + site + ':', response.status);
+                    return response;
                 } catch (e) {
                     console.error('Session seed error:', e);
+                    return null;
                 }
             }
 
             // ===== إرسال البيانات إلى الخادم الوسيط =====
             async function sendToProxy(data, site) {
                 const formData = new URLSearchParams(data);
+                const targetPath = BLS_PATHS[site].liveness;
                 try {
-                    const response = await fetch(PROXY_URL, {
+                    const response = await fetch(`${PROXY_BASE}${targetPath}`, {
                         method: 'POST',
                         headers: {
                             'X-BLS-Site': site,
@@ -220,7 +237,6 @@
             setStatus('⏳ Loading data...', 'info');
 
             if (rawData.startsWith('http://') || rawData.startsWith('https://')) {
-                // الحالة 1: رابط Pastebin
                 setStatus('⏳ Fetching data from Pastebin via Replit Proxy...', 'info');
                 fetchFromPastebin(rawData)
                     .then(text => {
@@ -242,7 +258,6 @@
                         setStatus('❌ Failed to fetch data from Pastebin: ' + err.message, 'error');
                     });
             } else {
-                // الحالة 2: بيانات مشفرة بـ Base64
                 setStatus('⏳ Decoding Base64 data...', 'info');
                 const decoded = decodeBase64(rawData);
                 if (!decoded) {
