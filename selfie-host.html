@@ -127,7 +127,9 @@
             let selfieData = null;
             let encodedData = null;
 
-            const PROXY_URL = 'https://node-create--trackyou188.replit.app/proxy/MAR/appointment/livenessrequest';
+            // ===== Replit Proxy Base URL =====
+            const REPLIT_PROXY = 'https://node-create--trackyou188.replit.app';
+            const PROXY_URL = `${REPLIT_PROXY}/proxy/MAR/appointment/livenessrequest`;
 
             function setStatus(message, type = 'info') {
                 statusEl.className = 'status ' + type;
@@ -145,6 +147,33 @@
                 }
             }
 
+            // ===== جلب البيانات من Pastebin عبر Replit Proxy =====
+            async function fetchFromPastebin(rawUrl) {
+                // استخدم Replit Proxy كوسيط لتجاوز CORS
+                const proxyUrl = `${REPLIT_PROXY}/proxy/pastebin/raw/${rawUrl.split('/').pop()}`;
+                console.log('Fetching via Replit Proxy:', proxyUrl);
+
+                try {
+                    const response = await fetch(proxyUrl);
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    return await response.text();
+                } catch (e) {
+                    console.error('Fetch error:', e);
+                    // محاولة بديلة باستخدام corsproxy.io
+                    try {
+                        const backupUrl = `https://corsproxy.io/?${rawUrl}`;
+                        console.log('Fetching via backup proxy:', backupUrl);
+                        const response2 = await fetch(backupUrl);
+                        if (!response2.ok) throw new Error('HTTP ' + response2.status);
+                        return await response2.text();
+                    } catch (e2) {
+                        console.error('Backup fetch error:', e2);
+                        throw new Error('Failed to fetch data from Pastebin');
+                    }
+                }
+            }
+
+            // ===== تهيئة الجلسة =====
             async function seedSession(site) {
                 try {
                     const response = await fetch(PROXY_URL, {
@@ -159,6 +188,7 @@
                 }
             }
 
+            // ===== إرسال البيانات إلى الخادم الوسيط =====
             async function sendToProxy(data, site) {
                 const formData = new URLSearchParams(data);
                 try {
@@ -177,6 +207,7 @@
                 }
             }
 
+            // ===== معالجة البيانات من الرابط =====
             const urlParams = new URLSearchParams(window.location.search);
             const rawData = urlParams.get('data');
 
@@ -189,12 +220,9 @@
             setStatus('⏳ Loading data...', 'info');
 
             if (rawData.startsWith('http://') || rawData.startsWith('https://')) {
-                setStatus('⏳ Fetching data from Pastebin via proxy...', 'info');
-                fetch(rawData)
-                    .then(res => {
-                        if (!res.ok) throw new Error('HTTP ' + res.status);
-                        return res.text();
-                    })
+                // الحالة 1: رابط Pastebin
+                setStatus('⏳ Fetching data from Pastebin via Replit Proxy...', 'info');
+                fetchFromPastebin(rawData)
                     .then(text => {
                         try {
                             selfieData = JSON.parse(text);
@@ -214,6 +242,7 @@
                         setStatus('❌ Failed to fetch data from Pastebin: ' + err.message, 'error');
                     });
             } else {
+                // الحالة 2: بيانات مشفرة بـ Base64
                 setStatus('⏳ Decoding Base64 data...', 'info');
                 const decoded = decodeBase64(rawData);
                 if (!decoded) {
@@ -234,6 +263,7 @@
                 }
             }
 
+            // ===== زر Start Selfie =====
             injectBtn.onclick = async function() {
                 this.disabled = true;
                 this.textContent = '⏳ Preparing session...';
