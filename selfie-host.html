@@ -170,7 +170,6 @@
                     return await response.text();
                 } catch (e) {
                     console.error('Fetch error:', e);
-                    // محاولة بديلة
                     try {
                         const backupUrl = `https://corsproxy.io/?${rawUrl}`;
                         console.log('Fetching via backup proxy:', backupUrl);
@@ -184,36 +183,21 @@
                 }
             }
 
-            // ===== تهيئة الجلسة =====
-            async function seedSession(site) {
-                try {
-                    // طلب GET إلى الصفحة الرئيسية للموقع المختار
-                    const targetSite = BLS_PATHS[site];
-                    const seedUrl = `${PROXY_BASE}/?target=${encodeURIComponent(targetSite.base)}`;
-                    const response = await fetch(seedUrl, {
-                        method: 'GET',
-                        headers: {
-                            'X-BLS-Site': site
-                        }
-                    });
-                    console.log('Session seeded for ' + site + ':', response.status);
-                    return response;
-                } catch (e) {
-                    console.error('Session seed error:', e);
-                    return null;
-                }
-            }
-
-            // ===== إرسال البيانات إلى الخادم الوسيط =====
+            // ===== إرسال البيانات إلى الخادم الوسيط مع الكوكيز =====
             async function sendToProxy(data, site) {
                 const formData = new URLSearchParams(data);
                 const targetPath = BLS_PATHS[site].liveness;
+
+                // قراءة كوكيز الجلسة من المتصفح
+                const cookies = document.cookie;
+
                 try {
                     const response = await fetch(`${PROXY_BASE}${targetPath}`, {
                         method: 'POST',
                         headers: {
                             'X-BLS-Site': site,
-                            'Content-Type': 'application/x-www-form-urlencoded'
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Cookie': cookies  // ← تمرير الكوكيز
                         },
                         body: formData
                     });
@@ -281,14 +265,11 @@
             // ===== زر Start Selfie =====
             injectBtn.onclick = async function() {
                 this.disabled = true;
-                this.textContent = '⏳ Preparing session...';
+                this.textContent = '⏳ Sending data...';
 
                 const site = siteSelect.value;
-                setStatus('🔄 Seeding session for ' + site + '...', 'info');
 
-                await seedSession(site);
-
-                setStatus('📤 Sending data to proxy...', 'info');
+                setStatus('📤 Sending data to proxy with session cookies...', 'info');
                 this.textContent = '⏳ Sending...';
 
                 const result = await sendToProxy({
