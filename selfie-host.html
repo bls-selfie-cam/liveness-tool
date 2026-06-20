@@ -35,6 +35,7 @@
             border-radius: 10px;
             margin-bottom: 20px;
             font-size: 14px;
+            transition: all 0.3s;
         }
         .status.success {
             background: #0d2818;
@@ -50,6 +51,11 @@
             background: #0d1a2b;
             border-left: 4px solid #58a6ff;
             color: #58a6ff;
+        }
+        .status.loading {
+            background: #1a1a2e;
+            border-left: 4px solid #ffaa00;
+            color: #ffaa00;
         }
         .loader {
             display: inline-block;
@@ -74,14 +80,30 @@
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.2s;
+            margin: 4px;
         }
         .btn:hover {
             background: #2ea043;
+            transform: scale(1.02);
         }
         .btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: #21262d;
+            color: #c9d1d9;
+        }
+        .btn-secondary:hover {
+            background: #30363d;
+        }
+        .btn-danger {
+            background: #da3633;
+        }
+        .btn-danger:hover {
+            background: #f85149;
         }
         .note {
             margin-top: 16px;
@@ -98,6 +120,28 @@
             width: 100%;
             font-size: 14px;
         }
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 12px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #21262d;
+            border-radius: 4px;
+            margin: 12px 0;
+            overflow: hidden;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            width: 0%;
+            background: #3fb950;
+            border-radius: 4px;
+            transition: width 0.5s;
+        }
     </style>
 </head>
 <body>
@@ -109,6 +153,10 @@
             <span class="loader"></span> Initializing...
         </div>
 
+        <div class="progress-bar" id="progressBar">
+            <div class="fill" id="progressFill"></div>
+        </div>
+
         <select id="siteSelect" class="select-box">
             <option value="spain">Spain (BLS Spain)</option>
             <option value="portugal">Portugal (BLS Portugal)</option>
@@ -116,7 +164,12 @@
 
         <button id="injectBtn" class="btn" style="display:none;">📸 Start Selfie</button>
 
-        <div class="note">⚠️ If popup is blocked, please allow popups for this site.</div>
+        <div class="btn-group" id="extraButtons" style="display:none;">
+            <button id="retryBtn" class="btn btn-secondary">🔄 Retry</button>
+            <button id="clearBtn" class="btn btn-danger">🗑️ Clear</button>
+        </div>
+
+        <div class="note" id="noteMessage">⚠️ If popup is blocked, please allow popups for this site.</div>
     </div>
 
     <script>
@@ -124,8 +177,13 @@
             const statusEl = document.getElementById('status');
             const injectBtn = document.getElementById('injectBtn');
             const siteSelect = document.getElementById('siteSelect');
+            const retryBtn = document.getElementById('retryBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const extraButtons = document.getElementById('extraButtons');
+            const progressFill = document.getElementById('progressFill');
+            const noteMessage = document.getElementById('noteMessage');
             let selfieData = null;
-            let encodedData = null;
+            let lastRawData = null;
 
             // ===== Replit Proxy Base URL (NEW ACCOUNT) =====
             const REPLIT_PROXY = 'https://proxy-hub--schoologgy8.replit.app';
@@ -148,6 +206,10 @@
                 statusEl.innerHTML = message;
             }
 
+            function setProgress(percent) {
+                progressFill.style.width = Math.min(100, Math.max(0, percent)) + '%';
+            }
+
             function decodeBase64(str) {
                 try {
                     const cleaned = str.replace(/\s/g, '');
@@ -159,7 +221,7 @@
                 }
             }
 
-            // ===== جلب البيانات من Pastebin عبر Replit Proxy مع الكوكيز =====
+            // ===== جلب البيانات من Pastebin عبر Replit Proxy =====
             async function fetchFromPastebin(rawUrl) {
                 const key = rawUrl.split('/').pop();
                 const proxyUrl = `${PROXY_BASE}/pastebin/raw/${key}`;
@@ -167,6 +229,7 @@
                 // قراءة كوكيز المتصفح لتمريرها إلى الخادم
                 const cookies = document.cookie;
 
+                setProgress(20);
                 try {
                     const response = await fetch(proxyUrl, {
                         headers: {
@@ -174,15 +237,21 @@
                         }
                     });
                     if (!response.ok) throw new Error('HTTP ' + response.status);
-                    return await response.text();
+                    setProgress(80);
+                    const text = await response.text();
+                    setProgress(100);
+                    return text;
                 } catch (e) {
                     console.error('Fetch error:', e);
-                    // محاولة بديلة باستخدام corsproxy.io
+                    setProgress(50);
                     try {
                         const backupUrl = `https://corsproxy.io/?${rawUrl}`;
                         const response2 = await fetch(backupUrl);
                         if (!response2.ok) throw new Error('HTTP ' + response2.status);
-                        return await response2.text();
+                        setProgress(80);
+                        const text = await response2.text();
+                        setProgress(100);
+                        return text;
                     } catch (e2) {
                         console.error('Backup fetch error:', e2);
                         throw new Error('Failed to fetch data from Pastebin');
@@ -216,60 +285,98 @@
             }
 
             // ===== معالجة البيانات من الرابط =====
+            function loadData(rawData) {
+                lastRawData = rawData;
+                setStatus('⏳ Loading data...', 'loading');
+                setProgress(10);
+
+                if (rawData.startsWith('http://') || rawData.startsWith('https://')) {
+                    // الحالة 1: رابط Pastebin
+                    setStatus('⏳ Fetching data from Pastebin via Replit Proxy...', 'loading');
+                    setProgress(30);
+                    fetchFromPastebin(rawData)
+                        .then(text => {
+                            try {
+                                selfieData = JSON.parse(text);
+                                if (!selfieData.appointmentData || !selfieData.livenessData || !selfieData.token) {
+                                    throw new Error('Missing required fields');
+                                }
+                                setStatus('✅ Data loaded successfully! Choose site and click the button.', 'success');
+                                setProgress(100);
+                                injectBtn.style.display = 'inline-block';
+                                extraButtons.style.display = 'flex';
+                                noteMessage.textContent = '✅ Data ready. Select site and start.';
+                            } catch (e) {
+                                console.error('Parse error:', e);
+                                setStatus('❌ Failed to parse Pastebin data: ' + e.message, 'error');
+                                setProgress(0);
+                                extraButtons.style.display = 'flex';
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Fetch error:', err);
+                            setStatus('❌ Failed to fetch data from Pastebin: ' + err.message, 'error');
+                            setProgress(0);
+                            extraButtons.style.display = 'flex';
+                        });
+                } else {
+                    // الحالة 2: بيانات مشفرة بـ Base64
+                    setStatus('⏳ Decoding Base64 data...', 'loading');
+                    setProgress(50);
+                    const decoded = decodeBase64(rawData);
+                    if (!decoded) {
+                        setStatus('❌ Failed to decode Base64 data.', 'error');
+                        setProgress(0);
+                        extraButtons.style.display = 'flex';
+                        return;
+                    }
+                    try {
+                        selfieData = JSON.parse(decoded);
+                        if (!selfieData.appointmentData || !selfieData.livenessData || !selfieData.token) {
+                            throw new Error('Missing required fields');
+                        }
+                        setStatus('✅ Base64 data loaded successfully! Choose site and click the button.', 'success');
+                        setProgress(100);
+                        injectBtn.style.display = 'inline-block';
+                        extraButtons.style.display = 'flex';
+                        noteMessage.textContent = '✅ Data ready. Select site and start.';
+                    } catch (e) {
+                        console.error('Parse error:', e);
+                        setStatus('❌ Failed to parse Base64 data: ' + e.message, 'error');
+                        setProgress(0);
+                        extraButtons.style.display = 'flex';
+                    }
+                }
+            }
+
+            // ===== بدء التشغيل =====
             const urlParams = new URLSearchParams(window.location.search);
             const rawData = urlParams.get('data');
 
             if (!rawData) {
                 setStatus('❌ No data provided in the link.', 'error');
+                noteMessage.textContent = '❌ The link is missing data. Please generate a new link.';
                 return;
             }
 
-            encodedData = rawData;
-            setStatus('⏳ Loading data...', 'info');
+            loadData(rawData);
 
-            if (rawData.startsWith('http://') || rawData.startsWith('https://')) {
-                // الحالة 1: رابط Pastebin
-                setStatus('⏳ Fetching data from Pastebin via Replit Proxy...', 'info');
-                fetchFromPastebin(rawData)
-                    .then(text => {
-                        try {
-                            selfieData = JSON.parse(text);
-                            if (!selfieData.appointmentData || !selfieData.livenessData || !selfieData.token) {
-                                throw new Error('Missing required fields');
-                            }
-                            setStatus('✅ Data loaded successfully! Choose site and click the button.', 'success');
-                            injectBtn.style.display = 'inline-block';
-                            siteSelect.style.display = 'inline-block';
-                        } catch (e) {
-                            console.error('Parse error:', e);
-                            setStatus('❌ Failed to parse Pastebin data: ' + e.message, 'error');
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Fetch error:', err);
-                        setStatus('❌ Failed to fetch data from Pastebin: ' + err.message, 'error');
-                    });
-            } else {
-                // الحالة 2: بيانات مشفرة بـ Base64
-                setStatus('⏳ Decoding Base64 data...', 'info');
-                const decoded = decodeBase64(rawData);
-                if (!decoded) {
-                    setStatus('❌ Failed to decode Base64 data.', 'error');
-                    return;
+            // ===== الأزرار =====
+            retryBtn.onclick = () => {
+                if (lastRawData) {
+                    setStatus('🔄 Retrying...', 'loading');
+                    loadData(lastRawData);
                 }
-                try {
-                    selfieData = JSON.parse(decoded);
-                    if (!selfieData.appointmentData || !selfieData.livenessData || !selfieData.token) {
-                        throw new Error('Missing required fields');
-                    }
-                    setStatus('✅ Base64 data loaded successfully! Choose site and click the button.', 'success');
-                    injectBtn.style.display = 'inline-block';
-                    siteSelect.style.display = 'inline-block';
-                } catch (e) {
-                    console.error('Parse error:', e);
-                    setStatus('❌ Failed to parse Base64 data: ' + e.message, 'error');
-                }
-            }
+            };
+
+            clearBtn.onclick = () => {
+                selfieData = null;
+                setStatus('🗑️ Data cleared', 'info');
+                injectBtn.style.display = 'none';
+                extraButtons.style.display = 'flex';
+                setProgress(0);
+                noteMessage.textContent = 'Data cleared. Reload the page to try again.';
+            };
 
             // ===== زر Start Selfie =====
             injectBtn.onclick = async function() {
@@ -278,7 +385,7 @@
 
                 const site = siteSelect.value;
 
-                setStatus('📤 Sending data to proxy with session cookies...', 'info');
+                setStatus('📤 Sending data to proxy with session cookies...', 'loading');
                 this.textContent = '⏳ Sending...';
 
                 const result = await sendToProxy({
