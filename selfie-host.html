@@ -2,103 +2,224 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Selfie Injector - BLS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLS Selfie Injector</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; background: #000; color: #fff; }
-        #status { margin-top: 20px; padding: 10px; background: #222; border-radius: 8px; }
-        button { background: #00ff88; color: #000; border: none; padding: 12px 20px; border-radius: 8px; margin-top: 20px; cursor: pointer; font-weight: bold; }
-        .hidden { display: none; }
-        .loader { display: inline-block; width: 20px; height: 20px; border: 2px solid #00ff88; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px; vertical-align: middle; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .note { margin-top: 20px; font-size: 12px; color: #aaa; }
+        body {
+            background: #0d1117;
+            color: #c9d1d9;
+            font-family: system-ui;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        .status {
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .status.success {
+            background: #0d2818;
+            border-left: 4px solid #3fb950;
+            color: #3fb950;
+        }
+        .status.error {
+            background: #2d0a0a;
+            border-left: 4px solid #da3633;
+            color: #da3633;
+        }
+        .status.info {
+            background: #0d1a2b;
+            border-left: 4px solid #58a6ff;
+            color: #58a6ff;
+        }
+        .loader {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #30363d;
+            border-top-color: #3fb950;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 12px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .btn {
+            background: #238636;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background: #2ea043;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .note {
+            margin-top: 16px;
+            font-size: 12px;
+            color: #8b949e;
+        }
     </style>
 </head>
 <body>
-    <h3>🔄 BLS Selfie Injector</h3>
-    <div id="status">⏳ Loading data...</div>
-    <button id="injectBtn" class="hidden">📸 Start Selfie</button>
-    <div id="note" class="note hidden">⚠️ If popup is blocked, please allow popups for this site.</div>
+    <div class="container" id="app">
+        <h1 style="font-size:20px;margin-bottom:8px;">📸 BLS Selfie Injector</h1>
+        <p style="color:#8b949e;font-size:13px;margin-bottom:24px;">Professional Selfie Link Processor</p>
+
+        <div id="status" class="status info">
+            <span class="loader"></span> Initializing...
+        </div>
+
+        <button id="injectBtn" class="btn" style="display:none;">📸 Start Selfie</button>
+
+        <div class="note">⚠️ If popup is blocked, please allow popups for this site.</div>
+    </div>
 
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const dataUrl = urlParams.get('data');
+        (function() {
+            const statusEl = document.getElementById('status');
+            const injectBtn = document.getElementById('injectBtn');
+            let selfieData = null;
 
-        if (!dataUrl) {
-            document.getElementById('status').innerHTML = '❌ Error: No data link provided.';
-        } else {
-            document.getElementById('status').innerHTML = '✅ Data link received. Fetching data...';
-            
-            fetch(dataUrl)
-                .then(res => res.json())
-                .then(data => {
-                    const record = data.record || data;
-                    const appointmentData = record.appointmentData;
-                    const livenessData = record.livenessData;
-                    const token = record.token;
-                    
-                    if (!appointmentData || !livenessData || !token) {
-                        throw new Error('Missing fields in fetched data');
-                    }
-                    
-                    document.getElementById('status').innerHTML = '✅ Data loaded. Please click Start Selfie.';
-                    document.getElementById('injectBtn').classList.remove('hidden');
-                    document.getElementById('note').classList.remove('hidden');
-                    window.selfieData = { appointmentData, livenessData, token };
-                })
-                .catch(err => {
-                    console.error(err);
-                    document.getElementById('status').innerHTML = '❌ Failed to fetch data: ' + err.message;
-                });
-        }
-        
-        document.getElementById('injectBtn').onclick = () => {
-            document.getElementById('status').innerHTML = '<span class="loader"></span> Opening BLS window...';
-            document.getElementById('injectBtn').disabled = true;
-            
-            const popup = window.open('https://www.blsspainmorocco.net/MAR/appointment/livenessrequest', '_blank', 'width=500,height=700');
-            
-            if (!popup) {
-                document.getElementById('status').innerHTML = '❌ Popup blocked! Please allow popups and try again.';
-                document.getElementById('injectBtn').disabled = false;
+            function setStatus(message, type = 'info') {
+                statusEl.className = 'status ' + type;
+                statusEl.innerHTML = message;
+            }
+
+            function decodeBase64(str) {
+                try {
+                    // إزالة أي مسافات أو أحرف غير صالحة
+                    const cleaned = str.replace(/\s/g, '');
+                    const decoded = atob(cleaned);
+                    return decodeURIComponent(decoded);
+                } catch (e) {
+                    console.error('Base64 decode error:', e);
+                    return null;
+                }
+            }
+
+            // استخراج data من الرابط
+            const urlParams = new URLSearchParams(window.location.search);
+            const encodedData = urlParams.get('data');
+
+            if (!encodedData) {
+                setStatus('❌ No data provided in the link.', 'error');
                 return;
             }
-            
-            let attempts = 0;
-            const maxAttempts = 40;
-            
-            const interval = setInterval(() => {
-                attempts++;
-                try {
-                    const doc = popup.document;
-                    const appInput = doc.querySelector('input[name="AppointmentData"]');
-                    const livInput = doc.querySelector('input[name="LivenessData"]');
-                    const tokenInput = doc.querySelector('input[name="__RequestVerificationToken"]');
-                    const acceptBtn = doc.querySelector('.btn-success');
-                    
-                    if (appInput && livInput && tokenInput) {
-                        appInput.value = window.selfieData.appointmentData;
-                        livInput.value = window.selfieData.livenessData;
-                        tokenInput.value = window.selfieData.token;
-                        document.getElementById('status').innerHTML = '✅ Data injected!';
-                        
-                        if (acceptBtn) {
-                            acceptBtn.click();
-                            document.getElementById('status').innerHTML = '✅ Selfie started! Complete the verification in the popup.';
-                        }
-                        clearInterval(interval);
-                    } else if (attempts >= maxAttempts) {
-                        clearInterval(interval);
-                        document.getElementById('status').innerHTML = '⚠️ Could not inject automatically. Please press Accept manually in the popup.';
-                    }
-                } catch(e) {
-                    if (attempts >= maxAttempts) {
-                        clearInterval(interval);
-                        document.getElementById('status').innerHTML = '⚠️ Please press Accept manually in the popup.';
-                    }
+
+            setStatus('⏳ Decoding data...', 'info');
+
+            // فك التشفير
+            const decoded = decodeBase64(encodedData);
+
+            if (!decoded) {
+                setStatus('❌ Failed to decode data. The link may be corrupted.', 'error');
+                return;
+            }
+
+            try {
+                selfieData = JSON.parse(decoded);
+
+                if (!selfieData.appointmentData || !selfieData.livenessData || !selfieData.token) {
+                    throw new Error('Missing required fields');
                 }
-            }, 500);
-        };
+
+                setStatus('✅ Data loaded successfully! Click the button below.', 'success');
+                injectBtn.style.display = 'inline-block';
+
+            } catch (e) {
+                console.error('Parse error:', e);
+                setStatus('❌ Failed to parse data: ' + e.message, 'error');
+                return;
+            }
+
+            // زر الحقن
+            injectBtn.onclick = function() {
+                this.disabled = true;
+                this.textContent = '⏳ Opening BLS...';
+
+                const popup = window.open('https://www.blsspainmorocco.net/MAR/appointment/livenessrequest', '_blank', 'width=500,height=700');
+
+                if (!popup) {
+                    setStatus('❌ Popup blocked! Please allow popups and try again.', 'error');
+                    this.disabled = false;
+                    this.textContent = '📸 Start Selfie';
+                    return;
+                }
+
+                setStatus('⏳ Waiting for BLS page to load...', 'info');
+
+                let attempts = 0;
+                const maxAttempts = 40;
+
+                const interval = setInterval(() => {
+                    attempts++;
+                    try {
+                        const doc = popup.document;
+                        const appInput = doc.querySelector('input[name="AppointmentData"]');
+                        const livInput = doc.querySelector('input[name="LivenessData"]');
+                        const tokenInput = doc.querySelector('input[name="__RequestVerificationToken"]');
+                        const acceptBtn = doc.querySelector('.btn-success');
+
+                        if (appInput && livInput && tokenInput) {
+                            // حقن البيانات
+                            appInput.value = selfieData.appointmentData;
+                            livInput.value = selfieData.livenessData;
+                            tokenInput.value = selfieData.token;
+
+                            setStatus('✅ Data injected!', 'success');
+
+                            if (acceptBtn) {
+                                acceptBtn.click();
+                                setStatus('✅ Selfie started! Complete the verification in the popup.', 'success');
+                            }
+
+                            clearInterval(interval);
+                            this.textContent = '✅ Done';
+                        } else if (attempts >= maxAttempts) {
+                            clearInterval(interval);
+                            setStatus('⚠️ Could not inject automatically. Please press Accept manually in the popup.', 'error');
+                            this.disabled = false;
+                            this.textContent = '📸 Start Selfie';
+                        }
+                    } catch (e) {
+                        if (attempts >= maxAttempts) {
+                            clearInterval(interval);
+                            setStatus('⚠️ Please press Accept manually in the popup.', 'error');
+                            this.disabled = false;
+                            this.textContent = '📸 Start Selfie';
+                        }
+                    }
+                }, 500);
+            };
+
+        })();
     </script>
 </body>
 </html>
