@@ -1,11 +1,10 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BLS Selfie Injector</title>
     <style>
-        /* نفس التنسيقات السابقة */
         body { background: #0d1117; color: #c9d1d9; font-family: system-ui; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; padding: 20px; }
         .container { background: #161b22; border: 1px solid #30363d; border-radius: 16px; padding: 30px; max-width: 600px; width: 100%; text-align: center; }
         .status { padding: 16px; border-radius: 10px; margin-bottom: 20px; font-size: 14px; }
@@ -31,8 +30,8 @@
         </div>
 
         <select id="siteSelect" class="select-box">
-            <option value="https://www.blsspainmorocco.net/MAR/appointment/livenessrequest">Spain (BLS Spain)</option>
-            <option value="https://morocco.blsportugal.com/MAR/appointment/livenessrequest">Portugal (BLS Portugal)</option>
+            <option value="https://www.blsspainmorocco.net/MAR/Appointment/Liveness?data=">Spain (BLS Spain)</option>
+            <option value="https://morocco.blsportugal.com/MAR/Appointment/Liveness?data=">Portugal (BLS Portugal)</option>
         </select>
 
         <button id="injectBtn" class="btn" style="display:none;">📸 Start Selfie</button>
@@ -63,7 +62,6 @@
                 }
             }
 
-            // استخراج data من الرابط
             const urlParams = new URLSearchParams(window.location.search);
             const encodedData = urlParams.get('data');
 
@@ -102,9 +100,11 @@
                 this.disabled = true;
                 this.textContent = '⏳ Opening BLS...';
 
-                const targetUrl = siteSelect.value;
+                // بناء الرابط مع البيانات المشفرة
+                const baseUrl = siteSelect.value;
+                const fullUrl = baseUrl + encodedData;
 
-                const popup = window.open(targetUrl, '_blank', 'width=500,height=700');
+                const popup = window.open(fullUrl, '_blank', 'width=500,height=700');
 
                 if (!popup) {
                     setStatus('❌ Popup blocked! Please allow popups and try again.', 'error');
@@ -115,47 +115,13 @@
 
                 setStatus('⏳ Waiting for BLS page to load...', 'info');
 
-                let attempts = 0;
-                const maxAttempts = 40;
-
-                const interval = setInterval(() => {
-                    attempts++;
-                    try {
-                        const doc = popup.document;
-                        const appInput = doc.querySelector('input[name="AppointmentData"]');
-                        const livInput = doc.querySelector('input[name="LivenessData"]');
-                        const tokenInput = doc.querySelector('input[name="__RequestVerificationToken"]');
-                        const acceptBtn = doc.querySelector('.btn-success');
-
-                        if (appInput && livInput && tokenInput) {
-                            appInput.value = selfieData.appointmentData;
-                            livInput.value = selfieData.livenessData;
-                            tokenInput.value = selfieData.token;
-
-                            setStatus('✅ Data injected!', 'success');
-
-                            if (acceptBtn) {
-                                acceptBtn.click();
-                                setStatus('✅ Selfie started! Complete the verification in the popup.', 'success');
-                            }
-
-                            clearInterval(interval);
-                            this.textContent = '✅ Done';
-                        } else if (attempts >= maxAttempts) {
-                            clearInterval(interval);
-                            setStatus('⚠️ Could not inject automatically. Please press Accept manually in the popup.', 'error');
-                            this.disabled = false;
-                            this.textContent = '📸 Start Selfie';
-                        }
-                    } catch (e) {
-                        if (attempts >= maxAttempts) {
-                            clearInterval(interval);
-                            setStatus('⚠️ Please press Accept manually in the popup.', 'error');
-                            this.disabled = false;
-                            this.textContent = '📸 Start Selfie';
-                        }
-                    }
-                }, 500);
+                // بعد فتح الرابط، نحتاج فقط إلى مراقبة النافذة، لأن البيانات موجودة بالفعل في الرابط
+                // نغلق المؤقت بعد فترة
+                setTimeout(() => {
+                    setStatus('✅ BLS page opened. Complete the verification in the popup.', 'success');
+                    this.disabled = false;
+                    this.textContent = '📸 Start Selfie';
+                }, 3000);
             };
 
         })();
