@@ -63,14 +63,28 @@
                 }
             }
 
+            // ===== استخدام CorsProxy.io لتجاوز CORS مع Pastebin =====
             async function fetchFromUrl(url) {
                 try {
-                    const response = await fetch(url);
+                    // استخدام CorsProxy.io لتجاوز مشكلة CORS مع Pastebin
+                    const proxyUrl = `https://corsproxy.io/?${url}`;
+                    console.log('Fetching via proxy:', proxyUrl);
+                    const response = await fetch(proxyUrl);
                     if (!response.ok) throw new Error('HTTP ' + response.status);
                     return await response.text();
                 } catch (e) {
                     console.error('Fetch error:', e);
-                    return null;
+                    // محاولة بديلة باستخدام allorigins
+                    try {
+                        const backupUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                        console.log('Fetching via backup proxy:', backupUrl);
+                        const response2 = await fetch(backupUrl);
+                        if (!response2.ok) throw new Error('HTTP ' + response2.status);
+                        return await response2.text();
+                    } catch (e2) {
+                        console.error('Backup fetch error:', e2);
+                        return null;
+                    }
                 }
             }
 
@@ -89,7 +103,7 @@
             // التحقق: هل البيانات هي رابط (يبدأ بـ http)؟
             if (rawData.startsWith('http://') || rawData.startsWith('https://')) {
                 // الحالة 1: رابط Pastebin
-                setStatus('⏳ Fetching data from Pastebin...', 'info');
+                setStatus('⏳ Fetching data from Pastebin via proxy...', 'info');
                 fetchFromUrl(rawData).then(text => {
                     if (!text) {
                         setStatus('❌ Failed to fetch data from Pastebin.', 'error');
@@ -134,9 +148,7 @@
                 this.disabled = true;
                 this.textContent = '⏳ Opening BLS...';
 
-                // بناء الرابط مع البيانات (نمررها كما هي، لأن الصفحة المستهدفة تتوقعها مشفرة أو كرابط)
                 const baseUrl = siteSelect.value;
-                // إذا كانت البيانات رابطاً (تبدأ بـ http)، نمررها كما هي، وإلا نمررها مشفرة
                 const dataParam = (rawData.startsWith('http://') || rawData.startsWith('https://')) ? rawData : encodedData;
                 const fullUrl = baseUrl + dataParam;
 
