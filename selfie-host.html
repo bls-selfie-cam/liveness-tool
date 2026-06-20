@@ -5,86 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BLS Selfie Injector</title>
     <style>
-        body {
-            background: #0d1117;
-            color: #c9d1d9;
-            font-family: system-ui;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 16px;
-            padding: 30px;
-            max-width: 600px;
-            width: 100%;
-            text-align: center;
-        }
-        .status {
-            padding: 16px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-        .status.success {
-            background: #0d2818;
-            border-left: 4px solid #3fb950;
-            color: #3fb950;
-        }
-        .status.error {
-            background: #2d0a0a;
-            border-left: 4px solid #da3633;
-            color: #da3633;
-        }
-        .status.info {
-            background: #0d1a2b;
-            border-left: 4px solid #58a6ff;
-            color: #58a6ff;
-        }
-        .loader {
-            display: inline-block;
-            width: 24px;
-            height: 24px;
-            border: 3px solid #30363d;
-            border-top-color: #3fb950;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 12px;
-            vertical-align: middle;
-        }
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-        .btn {
-            background: #238636;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 24px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .btn:hover {
-            background: #2ea043;
-        }
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .note {
-            margin-top: 16px;
-            font-size: 12px;
-            color: #8b949e;
-        }
+        /* نفس التنسيقات السابقة */
+        body { background: #0d1117; color: #c9d1d9; font-family: system-ui; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; padding: 20px; }
+        .container { background: #161b22; border: 1px solid #30363d; border-radius: 16px; padding: 30px; max-width: 600px; width: 100%; text-align: center; }
+        .status { padding: 16px; border-radius: 10px; margin-bottom: 20px; font-size: 14px; }
+        .status.success { background: #0d2818; border-left: 4px solid #3fb950; color: #3fb950; }
+        .status.error { background: #2d0a0a; border-left: 4px solid #da3633; color: #da3633; }
+        .status.info { background: #0d1a2b; border-left: 4px solid #58a6ff; color: #58a6ff; }
+        .loader { display: inline-block; width: 24px; height: 24px; border: 3px solid #30363d; border-top-color: #3fb950; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 12px; vertical-align: middle; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .btn { background: #238636; color: #fff; border: none; border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .btn:hover { background: #2ea043; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .note { margin-top: 16px; font-size: 12px; color: #8b949e; }
+        .select-box { margin: 16px 0; padding: 8px; border-radius: 8px; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; width: 100%; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -96,6 +30,11 @@
             <span class="loader"></span> Initializing...
         </div>
 
+        <select id="siteSelect" class="select-box">
+            <option value="https://www.blsspainmorocco.net/MAR/appointment/livenessrequest">Spain (BLS Spain)</option>
+            <option value="https://morocco.blsportugal.com/MAR/appointment/livenessrequest">Portugal (BLS Portugal)</option>
+        </select>
+
         <button id="injectBtn" class="btn" style="display:none;">📸 Start Selfie</button>
 
         <div class="note">⚠️ If popup is blocked, please allow popups for this site.</div>
@@ -105,6 +44,7 @@
         (function() {
             const statusEl = document.getElementById('status');
             const injectBtn = document.getElementById('injectBtn');
+            const siteSelect = document.getElementById('siteSelect');
             let selfieData = null;
 
             function setStatus(message, type = 'info') {
@@ -114,7 +54,6 @@
 
             function decodeBase64(str) {
                 try {
-                    // إزالة أي مسافات أو أحرف غير صالحة
                     const cleaned = str.replace(/\s/g, '');
                     const decoded = atob(cleaned);
                     return decodeURIComponent(decoded);
@@ -135,7 +74,6 @@
 
             setStatus('⏳ Decoding data...', 'info');
 
-            // فك التشفير
             const decoded = decodeBase64(encodedData);
 
             if (!decoded) {
@@ -150,8 +88,9 @@
                     throw new Error('Missing required fields');
                 }
 
-                setStatus('✅ Data loaded successfully! Click the button below.', 'success');
+                setStatus('✅ Data loaded successfully! Choose site and click the button.', 'success');
                 injectBtn.style.display = 'inline-block';
+                siteSelect.style.display = 'inline-block';
 
             } catch (e) {
                 console.error('Parse error:', e);
@@ -159,12 +98,13 @@
                 return;
             }
 
-            // زر الحقن
             injectBtn.onclick = function() {
                 this.disabled = true;
                 this.textContent = '⏳ Opening BLS...';
 
-                const popup = window.open('https://www.blsspainmorocco.net/MAR/appointment/livenessrequest', '_blank', 'width=500,height=700');
+                const targetUrl = siteSelect.value;
+
+                const popup = window.open(targetUrl, '_blank', 'width=500,height=700');
 
                 if (!popup) {
                     setStatus('❌ Popup blocked! Please allow popups and try again.', 'error');
@@ -188,7 +128,6 @@
                         const acceptBtn = doc.querySelector('.btn-success');
 
                         if (appInput && livInput && tokenInput) {
-                            // حقن البيانات
                             appInput.value = selfieData.appointmentData;
                             livInput.value = selfieData.livenessData;
                             tokenInput.value = selfieData.token;
