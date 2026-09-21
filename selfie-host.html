@@ -3,12 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Selfie Verification</title>
+    <title>Selfie Test</title>
     <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body { background:#000; width:100%; height:100vh; overflow:hidden; font-family:system-ui; }
-        .ozliveness_logo, .ozliveness_version, .ozliveness_info { display:none !important; }
-        #ozliveness-root { width:100%; height:100%; }
+        body { margin:0; background:#000; color:#fff; font-family:system-ui; }
         #msg {
             position:fixed; top:20px; left:50%; transform:translateX(-50%);
             background:#0d2818; color:#3fb950; padding:12px 20px;
@@ -18,111 +15,42 @@
         }
         #msg.show { display:block; }
         #msg.error { background:#2d0a0a; color:#f85149; }
+        iframe { width:100%; height:100vh; border:none; }
     </style>
-    <link rel="stylesheet" href="https://web-sdk.prod.cdn.spain.ozforensics.com/blsinternational/plugin/liveness-81ab90655a.css?ver=1.8.1-10">
 </head>
 <body>
     <div id="msg"></div>
-    <div id="ozliveness-root"></div>
-
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
-        import { getFirestore, doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyAefpz6xhv_hS0umdZRDzFTRUvPeU7riUc",
-            authDomain: "bls-selfie-eda35.firebaseapp.com",
-            projectId: "bls-selfie-eda35",
-            storageBucket: "bls-selfie-eda35.firebasestorage.app",
-            messagingSenderId: "1021948828884",
-            appId: "1:1021948828884:web:6d6e2c9b0bc0a51cd92f41"
-        };
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        const params = new URLSearchParams(window.location.search);
-        const sessionId = params.get('s');
-        window.__SESSION_ID__ = sessionId;
-        window.__DB__ = db;
-        window.__SETDOC__ = setDoc;
-        window.__DOC__ = doc;
-
-        console.log('✅ Firebase ready, session:', sessionId);
-    </script>
-
-    <!-- OzLiveness SDK -->
-    <script src="https://web-sdk.prod.cdn.spain.ozforensics.com/blsinternational/plugin_liveness.php"></script>
-    <script src="https://web-sdk.prod.cdn.spain.ozforensics.com/blsinternational/plugin/vendor/podium.js?ver=1.8.1-10"></script>
-    <script src="https://web-sdk.prod.cdn.spain.ozforensics.com/blsinternational/plugin/ozliveness_core.js?ver=1.8.1-10"></script>
-    <script src="https://web-sdk.prod.cdn.spain.ozforensics.com/blsinternational/plugin/faceworker.js?ver=1.8.1-10"></script>
-    <script src="https://web-sdk.prod.cdn.spain.ozforensics.com/blsinternational/plugin/vendor/container.wasm?ver=1.8.1-10"></script>
-    <script src="https://web-sdk.prod.cdn.spain.ozforensics.com/blsinternational/plugin/add_lang/en.js?ver=1.8.1-10"></script>
-    <script src="https://web-sdk.prod.cdn.spain.ozforensics.com/blsinternational/plugin/ozliveness_main.js?ver=1.8.1-10"></script>
+    <iframe id="frame"></iframe>
 
     <script>
-        function showMsg(text, isError) {
-            const m = document.getElementById('msg');
-            m.textContent = text;
-            m.className = isError ? 'show error' : 'show';
-        }
+        const frame = document.getElementById('frame');
+        const msg = document.getElementById('msg');
 
-        function waitForOzLiveness() {
-            if (typeof OzLiveness !== 'undefined' && OzLiveness.open) {
-                console.log('✅ OzLiveness ready');
-                try {
-                    OzLiveness.open({
-                        container: document.getElementById('ozliveness-root'),
-                        lang: 'en',
-                        meta: {
-                            user_id: 'user-' + Date.now(),
-                            transaction_id: window.__SESSION_ID__ || 'unknown'
-                        },
-                        action: ["video_selfie_blank"],
-                        result_mode: 'safe',
-                        on_complete: async function(result) {
-                            console.log('✅ Selfie completed:', result);
-                            const sessionId = window.__SESSION_ID__;
-                            const livenessId = result.event_session_id;
+        frame.src = 'https://morocco.blsportugal.com/MAR/appointment/livenessrequest';
 
-                            if (!sessionId) {
-                                showMsg('❌ Missing session ID', true);
-                                return;
-                            }
-
-                            try {
-                                await window.__SETDOC__(
-                                    window.__DOC__(window.__DB__, 'sessions', sessionId),
-                                    {
-                                        livenessId: livenessId,
-                                        status: 'completed',
-                                        completedAt: Date.now()
-                                    }
-                                );
-                                showMsg('✅ تم التحقق بنجاح! يمكنك إغلاق الصفحة.');
-                                setTimeout(() => {
-                                    document.getElementById('ozliveness-root').innerHTML =
-                                        '<div style="color:#3fb950;text-align:center;padding:60px 20px;font-size:20px;">✅ تم بنجاح<br><br>يمكنك إغلاق هذه الصفحة.</div>';
-                                }, 1000);
-                            } catch (e) {
-                                console.error('Firestore error:', e);
-                                showMsg('❌ خطأ في الإرسال: ' + e.message, true);
-                            }
-                        },
-                        on_error: function(error) {
-                            console.error('OzLiveness error:', error);
-                            showMsg('❌ خطأ: ' + JSON.stringify(error), true);
-                        }
-                    });
-                } catch(e) {
-                    console.error('Exception:', e);
-                    showMsg('❌ ' + e.message, true);
+        frame.onload = () => {
+            showMsg('✅ iframe loaded! Trying to access...');
+            try {
+                const doc = frame.contentDocument || frame.contentWindow.document;
+                const appt = doc.querySelector('input[name="AppointmentData"]');
+                if (appt) {
+                    showMsg('✅ Fields found! X-Frame-Options allows!');
+                } else {
+                    showMsg('⚠ iframe loaded but no fields found.', true);
                 }
-            } else {
-                setTimeout(waitForOzLiveness, 200);
+            } catch(e) {
+                showMsg('❌ Cannot access iframe: ' + e.message, true);
             }
+        };
+
+        frame.onerror = () => {
+            showMsg('❌ iframe failed to load (BLS blocks embedding)', true);
+        };
+
+        function showMsg(text, isError) {
+            msg.textContent = text;
+            msg.className = isError ? 'show error' : 'show';
         }
-        window.addEventListener('load', waitForOzLiveness);
     </script>
 </body>
 </html>
