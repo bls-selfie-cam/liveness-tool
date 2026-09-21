@@ -3,423 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>BLS Selfie Injector</title>
+    <title>Selfie Verification</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#000; width:100%; height:100vh; overflow:hidden; font-family:system-ui; }
+        .ozliveness_logo, .ozliveness_version, .ozliveness_info { display:none !important; }
+        #ozliveness-root { width:100%; height:100%; }
+        #msg {
+            position:fixed; top:20px; left:50%; transform:translateX(-50%);
+            background:#0d2818; color:#3fb950; padding:12px 20px;
+            border-radius:8px; font-weight:600; z-index:9999;
+            display:none; box-shadow:0 4px 16px rgba(0,0,0,0.5);
+            max-width:90%; text-align:center;
         }
-        body {
-            background: #0d1117;
-            color: #c9d1d9;
-            font-family: system-ui, -apple-system, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 16px;
-            padding: 30px;
-            max-width: 600px;
-            width: 100%;
-            text-align: center;
-        }
-        .status {
-            padding: 16px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-        .status.success {
-            background: #0d2818;
-            border-left: 4px solid #3fb950;
-            color: #3fb950;
-        }
-        .status.error {
-            background: #2d0a0a;
-            border-left: 4px solid #da3633;
-            color: #da3633;
-        }
-        .status.info {
-            background: #0d1a2b;
-            border-left: 4px solid #58a6ff;
-            color: #58a6ff;
-        }
-        .status.loading {
-            background: #1a1a2e;
-            border-left: 4px solid #ffaa00;
-            color: #ffaa00;
-        }
-        .loader {
-            display: inline-block;
-            width: 24px;
-            height: 24px;
-            border: 3px solid #30363d;
-            border-top-color: #3fb950;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 12px;
-            vertical-align: middle;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        .btn {
-            background: #238636;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 24px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin: 4px;
-        }
-        .btn:hover {
-            background: #2ea043;
-            transform: scale(1.02);
-        }
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-        .btn-secondary {
-            background: #21262d;
-            color: #c9d1d9;
-        }
-        .btn-secondary:hover {
-            background: #30363d;
-        }
-        .btn-danger {
-            background: #da3633;
-        }
-        .btn-danger:hover {
-            background: #f85149;
-        }
-        .note {
-            margin-top: 16px;
-            font-size: 12px;
-            color: #8b949e;
-        }
-        .select-box {
-            margin: 16px 0;
-            padding: 8px;
-            border-radius: 8px;
-            background: #0d1117;
-            border: 1px solid #30363d;
-            color: #c9d1d9;
-            width: 100%;
-            font-size: 14px;
-        }
-        .btn-group {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-top: 12px;
-        }
-        .progress-bar {
-            width: 100%;
-            height: 4px;
-            background: #21262d;
-            border-radius: 4px;
-            margin: 12px 0;
-            overflow: hidden;
-        }
-        .progress-bar .fill {
-            height: 100%;
-            width: 0%;
-            background: #3fb950;
-            border-radius: 4px;
-            transition: width 0.5s;
-        }
+        #msg.show { display:block; }
+        #msg.error { background:#2d0a0a; color:#f85149; }
     </style>
+    <link rel="stylesheet" href="https://web-sdk.prod.cdn.spain.ozforensics.com/blsinternational/plugin/liveness-81ab90655a.css?ver=1.8.1-10">
 </head>
 <body>
-    <div class="container" id="app">
-        <h1 style="font-size:20px;margin-bottom:8px;">📸 BLS Selfie Injector</h1>
-        <p style="color:#8b949e;font-size:13px;margin-bottom:24px;">Professional Selfie Link Processor</p>
+    <div id="msg"></div>
+    <div id="ozliveness-root"></div>
 
-        <div id="status" class="status info">
-            <span class="loader"></span> Initializing...
-        </div>
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+        import { getFirestore, doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
-        <div class="progress-bar" id="progressBar">
-            <div class="fill" id="progressFill"></div>
-        </div>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAefpz6xhv_hS0umdZRDzFTRUvPeU7riUc",
+            authDomain: "bls-selfie-eda35.firebaseapp.com",
+            projectId: "bls-selfie-eda35",
+            storageBucket: "bls-selfie-eda35.firebasestorage.app",
+            messagingSenderId: "1021948828884",
+            appId: "1:1021948828884:web:6d6e2c9b0bc0a51cd92f41"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
-        <select id="siteSelect" class="select-box">
-            <option value="spain">Spain (BLS Spain)</option>
-            <option value="portugal">Portugal (BLS Portugal)</option>
-        </select>
+        const params = new URLSearchParams(window.location.search);
+        const sessionId = params.get('s');
+        window.__SESSION_ID__ = sessionId;
+        window.__DB__ = db;
+        window.__SETDOC__ = setDoc;
+        window.__DOC__ = doc;
 
-        <button id="injectBtn" class="btn" style="display:none;">📸 Start Selfie</button>
+        console.log('✅ Firebase ready, session:', sessionId);
+    </script>
 
-        <div class="btn-group" id="extraButtons" style="display:none;">
-            <button id="retryBtn" class="btn btn-secondary">🔄 Retry</button>
-            <button id="clearBtn" class="btn btn-danger">🗑️ Clear</button>
-        </div>
-
-        <div class="note" id="noteMessage">⚠️ If popup is blocked, please allow popups for this site.</div>
-    </div>
+    <!-- OzLiveness SDK -->
+    <script src="https://web-sdk.prod.cdn.spain.ozforensics.com/blsinternational/plugin_liveness.php"></script>
+    <script src="https://web-sdk.prod.cdn.spain.ozforensics.com/blsinternational/plugin/vendor/podium.js?ver=1.8.1-10"></script>
+    <script src="https://web-sdk.prod.cdn.spain.ozforensics.com/blsinternational/plugin/ozliveness_core.js?ver=1.8.1-10"></script>
+    <script src="https://web-sdk.prod.cdn.spain.ozforensics.com/blsinternational/plugin/faceworker.js?ver=1.8.1-10"></script>
+    <script src="https://web-sdk.prod.cdn.spain.ozforensics.com/blsinternational/plugin/vendor/container.wasm?ver=1.8.1-10"></script>
+    <script src="https://web-sdk.prod.cdn.spain.ozforensics.com/blsinternational/plugin/add_lang/en.js?ver=1.8.1-10"></script>
+    <script src="https://web-sdk.prod.cdn.spain.ozforensics.com/blsinternational/plugin/ozliveness_main.js?ver=1.8.1-10"></script>
 
     <script>
-        (function() {
-            const statusEl = document.getElementById('status');
-            const injectBtn = document.getElementById('injectBtn');
-            const siteSelect = document.getElementById('siteSelect');
-            const retryBtn = document.getElementById('retryBtn');
-            const clearBtn = document.getElementById('clearBtn');
-            const extraButtons = document.getElementById('extraButtons');
-            const progressFill = document.getElementById('progressFill');
-            const noteMessage = document.getElementById('noteMessage');
-            let selfieData = null;
-            let lastRawData = null;
+        function showMsg(text, isError) {
+            const m = document.getElementById('msg');
+            m.textContent = text;
+            m.className = isError ? 'show error' : 'show';
+        }
 
-            // ===== Replit Proxy Base URL (NEW ACCOUNT) =====
-            const REPLIT_PROXY = 'https://proxy-hub--schoologgy8.replit.app';
-            const PROXY_BASE = `${REPLIT_PROXY}/proxy`;
-
-            // ===== مسارات BLS =====
-            const BLS_PATHS = {
-                spain: {
-                    base: 'https://www.blsspainmorocco.net',
-                    liveness: '/MAR/appointment/livenessrequest'
-                },
-                portugal: {
-                    base: 'https://morocco.blsportugal.com',
-                    liveness: '/MAR/appointment/livenessrequest'
-                }
-            };
-
-            function setStatus(message, type = 'info') {
-                statusEl.className = 'status ' + type;
-                statusEl.innerHTML = message;
-            }
-
-            function setProgress(percent) {
-                progressFill.style.width = Math.min(100, Math.max(0, percent)) + '%';
-            }
-
-            function decodeBase64(str) {
+        function waitForOzLiveness() {
+            if (typeof OzLiveness !== 'undefined' && OzLiveness.open) {
+                console.log('✅ OzLiveness ready');
                 try {
-                    const cleaned = str.replace(/\s/g, '');
-                    const decoded = atob(cleaned);
-                    return decodeURIComponent(decoded);
-                } catch (e) {
-                    console.error('Base64 decode error:', e);
-                    return null;
-                }
-            }
-
-            // ===== جلب البيانات من Pastebin عبر Replit Proxy =====
-            async function fetchFromPastebin(rawUrl) {
-                const key = rawUrl.split('/').pop();
-                const proxyUrl = `${PROXY_BASE}/pastebin/raw/${key}`;
-
-                // قراءة كوكيز المتصفح لتمريرها إلى الخادم
-                const cookies = document.cookie;
-
-                setProgress(20);
-                try {
-                    const response = await fetch(proxyUrl, {
-                        headers: {
-                            'Cookie': cookies  // ← تمرير الكوكيز
-                        }
-                    });
-                    if (!response.ok) throw new Error('HTTP ' + response.status);
-                    setProgress(80);
-                    const text = await response.text();
-                    setProgress(100);
-                    return text;
-                } catch (e) {
-                    console.error('Fetch error:', e);
-                    setProgress(50);
-                    try {
-                        const backupUrl = `https://corsproxy.io/?${rawUrl}`;
-                        const response2 = await fetch(backupUrl);
-                        if (!response2.ok) throw new Error('HTTP ' + response2.status);
-                        setProgress(80);
-                        const text = await response2.text();
-                        setProgress(100);
-                        return text;
-                    } catch (e2) {
-                        console.error('Backup fetch error:', e2);
-                        throw new Error('Failed to fetch data from Pastebin');
-                    }
-                }
-            }
-
-            // ===== إرسال البيانات إلى الخادم الوسيط مع الكوكيز =====
-            async function sendToProxy(data, site) {
-                const formData = new URLSearchParams(data);
-                const targetPath = BLS_PATHS[site].liveness;
-
-                // قراءة كوكيز الجلسة من المتصفح
-                const cookies = document.cookie;
-
-                try {
-                    const response = await fetch(`${PROXY_BASE}${targetPath}`, {
-                        method: 'POST',
-                        headers: {
-                            'X-BLS-Site': site,
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                            'Cookie': cookies  // ← تمرير الكوكيز
+                    OzLiveness.open({
+                        container: document.getElementById('ozliveness-root'),
+                        lang: 'en',
+                        meta: {
+                            user_id: 'user-' + Date.now(),
+                            transaction_id: window.__SESSION_ID__ || 'unknown'
                         },
-                        body: formData
-                    });
-                    const text = await response.text();
-                    return { status: response.status, body: text };
-                } catch (e) {
-                    return { status: 0, body: e.message };
-                }
-            }
+                        action: ["video_selfie_blank"],
+                        result_mode: 'safe',
+                        on_complete: async function(result) {
+                            console.log('✅ Selfie completed:', result);
+                            const sessionId = window.__SESSION_ID__;
+                            const livenessId = result.event_session_id;
 
-            // ===== معالجة البيانات من الرابط =====
-            function loadData(rawData) {
-                lastRawData = rawData;
-                setStatus('⏳ Loading data...', 'loading');
-                setProgress(10);
-
-                if (rawData.startsWith('http://') || rawData.startsWith('https://')) {
-                    // الحالة 1: رابط Pastebin
-                    setStatus('⏳ Fetching data from Pastebin via Replit Proxy...', 'loading');
-                    setProgress(30);
-                    fetchFromPastebin(rawData)
-                        .then(text => {
-                            try {
-                                selfieData = JSON.parse(text);
-                                if (!selfieData.appointmentData || !selfieData.livenessData || !selfieData.token) {
-                                    throw new Error('Missing required fields');
-                                }
-                                setStatus('✅ Data loaded successfully! Choose site and click the button.', 'success');
-                                setProgress(100);
-                                injectBtn.style.display = 'inline-block';
-                                extraButtons.style.display = 'flex';
-                                noteMessage.textContent = '✅ Data ready. Select site and start.';
-                            } catch (e) {
-                                console.error('Parse error:', e);
-                                setStatus('❌ Failed to parse Pastebin data: ' + e.message, 'error');
-                                setProgress(0);
-                                extraButtons.style.display = 'flex';
+                            if (!sessionId) {
+                                showMsg('❌ Missing session ID', true);
+                                return;
                             }
-                        })
-                        .catch(err => {
-                            console.error('Fetch error:', err);
-                            setStatus('❌ Failed to fetch data from Pastebin: ' + err.message, 'error');
-                            setProgress(0);
-                            extraButtons.style.display = 'flex';
-                        });
-                } else {
-                    // الحالة 2: بيانات مشفرة بـ Base64
-                    setStatus('⏳ Decoding Base64 data...', 'loading');
-                    setProgress(50);
-                    const decoded = decodeBase64(rawData);
-                    if (!decoded) {
-                        setStatus('❌ Failed to decode Base64 data.', 'error');
-                        setProgress(0);
-                        extraButtons.style.display = 'flex';
-                        return;
-                    }
-                    try {
-                        selfieData = JSON.parse(decoded);
-                        if (!selfieData.appointmentData || !selfieData.livenessData || !selfieData.token) {
-                            throw new Error('Missing required fields');
+
+                            try {
+                                await window.__SETDOC__(
+                                    window.__DOC__(window.__DB__, 'sessions', sessionId),
+                                    {
+                                        livenessId: livenessId,
+                                        status: 'completed',
+                                        completedAt: Date.now()
+                                    }
+                                );
+                                showMsg('✅ تم التحقق بنجاح! يمكنك إغلاق الصفحة.');
+                                setTimeout(() => {
+                                    document.getElementById('ozliveness-root').innerHTML =
+                                        '<div style="color:#3fb950;text-align:center;padding:60px 20px;font-size:20px;">✅ تم بنجاح<br><br>يمكنك إغلاق هذه الصفحة.</div>';
+                                }, 1000);
+                            } catch (e) {
+                                console.error('Firestore error:', e);
+                                showMsg('❌ خطأ في الإرسال: ' + e.message, true);
+                            }
+                        },
+                        on_error: function(error) {
+                            console.error('OzLiveness error:', error);
+                            showMsg('❌ خطأ: ' + JSON.stringify(error), true);
                         }
-                        setStatus('✅ Base64 data loaded successfully! Choose site and click the button.', 'success');
-                        setProgress(100);
-                        injectBtn.style.display = 'inline-block';
-                        extraButtons.style.display = 'flex';
-                        noteMessage.textContent = '✅ Data ready. Select site and start.';
-                    } catch (e) {
-                        console.error('Parse error:', e);
-                        setStatus('❌ Failed to parse Base64 data: ' + e.message, 'error');
-                        setProgress(0);
-                        extraButtons.style.display = 'flex';
-                    }
+                    });
+                } catch(e) {
+                    console.error('Exception:', e);
+                    showMsg('❌ ' + e.message, true);
                 }
+            } else {
+                setTimeout(waitForOzLiveness, 200);
             }
-
-            // ===== بدء التشغيل =====
-            const urlParams = new URLSearchParams(window.location.search);
-            const rawData = urlParams.get('data');
-
-            if (!rawData) {
-                setStatus('❌ No data provided in the link.', 'error');
-                noteMessage.textContent = '❌ The link is missing data. Please generate a new link.';
-                return;
-            }
-
-            loadData(rawData);
-
-            // ===== الأزرار =====
-            retryBtn.onclick = () => {
-                if (lastRawData) {
-                    setStatus('🔄 Retrying...', 'loading');
-                    loadData(lastRawData);
-                }
-            };
-
-            clearBtn.onclick = () => {
-                selfieData = null;
-                setStatus('🗑️ Data cleared', 'info');
-                injectBtn.style.display = 'none';
-                extraButtons.style.display = 'flex';
-                setProgress(0);
-                noteMessage.textContent = 'Data cleared. Reload the page to try again.';
-            };
-
-            // ===== زر Start Selfie =====
-            injectBtn.onclick = async function() {
-                this.disabled = true;
-                this.textContent = '⏳ Sending data...';
-
-                const site = siteSelect.value;
-
-                setStatus('📤 Sending data to proxy with session cookies...', 'loading');
-                this.textContent = '⏳ Sending...';
-
-                const result = await sendToProxy({
-                    AppointmentData: selfieData.appointmentData,
-                    LivenessData: selfieData.livenessData,
-                    __RequestVerificationToken: selfieData.token
-                }, site);
-
-                console.log('Proxy response:', result);
-
-                if (result.status === 200 || result.status === 302 || result.status === 301) {
-                    setStatus('✅ Request successful! Opening BLS page...', 'success');
-                    this.textContent = '✅ Done';
-
-                    const fullUrl = `https://www.blsspainmorocco.net/MAR/appointment/livenessrequest`;
-                    const popup = window.open(fullUrl, '_blank', 'width=500,height=700');
-                    if (!popup) {
-                        setStatus('⚠️ Popup blocked! Please allow popups.', 'error');
-                    } else {
-                        setTimeout(() => {
-                            setStatus('✅ BLS page opened. Complete the verification in the popup.', 'success');
-                        }, 3000);
-                    }
-                } else {
-                    setStatus('❌ Proxy returned error: ' + result.status + ' - ' + result.body.substring(0, 100), 'error');
-                    this.textContent = '📸 Start Selfie';
-                    this.disabled = false;
-                }
-
-                this.textContent = '📸 Start Selfie';
-                this.disabled = false;
-            };
-
-        })();
+        }
+        window.addEventListener('load', waitForOzLiveness);
     </script>
 </body>
 </html>
